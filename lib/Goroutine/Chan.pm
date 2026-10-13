@@ -10,16 +10,27 @@ our $VERSION = '0.01';
 sub new {
     my ($class) = @_;
     pipe(my $r, my $w) or die "pipe: $!";
-    my ($fh, $wlock) = tempfile('gochan_XXXXXXXX', TMPDIR => 1);
-    close $fh;      # we only need the file to exist
+    my ($rlock, $wlock);
+    for my $slot (\$rlock, \$wlock) {
+        my ($fh, $name) = tempfile('gochan_XXXXXXXX', TMPDIR => 1);
+        close $fh;      # we only need the file to exist
+        $$slot = $name;
+    }
+    return bless { r => $r, w => $w, rlock => $rlock, wlock => $wlock,
+                   owner => $$ }, $class;
+}
 
-    return bless { r => $r, w => $w, wlock => $wlock, owner => $$ }, $class;
+sub _lock {
+    my ($path) = @_;
+    open my $fh, '>>', $path or die "lock $path: $!";
+    flock($fh, LOCK_EX) or die "flock: $!";
+    return $fh;     # the lock is released when $fh goes out of scope
 }
 
 sub _write_frame {
     my ($self, $frame) = @_;
-    open my $lock, '>>', $self->{wlock} or die "lock: $!";
-    flock($lock, LOCK_EX) or die "flock: $!";
+    my $lock = _lock($self->{wlock});
+
     while (length $frame) {
         my $n = syswrite($self->{w}, $frame);
         die "send: $!" unless defined $n;
@@ -30,7 +41,7 @@ sub _write_frame {
 
 sub DESTROY {
     my ($self) = @_;
-    unlink $self->{wlock} if $self->{owner} == $$;
+    unlink $self->{rlock}, $self->{wlock} if $self->{owner} == $$;
 }
 
 sub send {
@@ -46,17 +57,19 @@ sub recv {
     my ($self) = @_;
     return wantarray ? (undef, 0) : undef if $self->{closed};
 
-    my $header = _read_exact($self->{r}, 4);
-    my $len = unpack('N', $header);
+    my $payload;
+    {
+        my $lock   = _lock($self->{rlock});
+        my $header = _read_exact($self->{r}, 4);
+        my $len    = unpack('N', $header);
 
-    if ($len == 0) {                       # the close marker
-        $self->{closed} = 1;
-        return wantarray ? (undef, 0) : undef;
+        if ($len == 0) {                   # the close marker
+            $self->{closed} = 1;
+            return wantarray ? (undef, 0) : undef;
+        }
+        $payload = _read_exact($self->{r}, $len);
     }
-
-    my $payload = _read_exact($self->{r}, $len);
     my $value = thaw($payload)->[0];
-
     return wantarray ? ($value, 1) : $value;
 }
 
