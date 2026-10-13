@@ -1,0 +1,53 @@
+# Perl
+!Build/
+.last_cover_stats
+/META.yml
+/META.json
+/MYMETA.*
+*.o
+*.pm.tdy
+*.bs
+
+# Test and profiling output
+cover_db/
+nytprof.out
+
+# Build tools
+/.build/
+_build/
+Build
+Build.bat
+inc/
+/blib/
+/_eumm/
+/Makefile
+/Makefile.old
+/MANIFEST.bak
+/pm_to_blib
+
+# Distribution archives
+/*.gz
+/*.zip
+
+# Carton/Carmel local libraries
+/local/
+/.carmel/
+
+# Dependency snapshot: usually ignore for libraries, consider committing for apps
+# cpanfile.snapshot
+
+# VS Code: ignore workspace files, keep shared project settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# JetBrains IDEs: IntelliJ IDEA, etc.
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
