@@ -1,0 +1,21 @@
+Changes
+lib/Parallel/Goroutine.pm
+lib/Parallel/Goroutine/Chan.pm
+LICENSE
+Makefile.PL
+MANIFEST			This list of files
+README
+t/00-load.t
+t/01-chan-create.t
+t/02-chan-send-recv.t
+t/03-chan-data.t
+t/04-chan-close.t
+t/05-go-basic.t
+t/06-wait-all.t
+t/07-concurrent-senders.t
+t/08-concurrent-receivers.t
+t/09-close-many-receivers.t
+t/10-go-args-and-panic.t
+t/11-go-output.t
+t/12-gselect.t
+t/13-chan-each.t

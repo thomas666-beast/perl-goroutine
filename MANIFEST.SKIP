@@ -1,0 +1,34 @@
+# Version control
+^\.git/
+^\.gitignore$
+^\.github/
+
+# Build artifacts
+^blib/
+^_build/
+^pm_to_blib$
+^Makefile$
+^Makefile\.old$
+^MYMETA\.(json|yml)$
+
+# Distribution tarballs and their unpacked trees
+^Parallel-Goroutine-[\d.]+\.tar\.gz$
+^Parallel-Goroutine-[\d.]+/
+
+# Editor and OS cruft
+~$
+\.bak$
+\.swp$
+\.swo$
+^\.# 
+\.[Dd][Ss]_[Ss]tore$
+^Thumbs\.db$
+^desktop\.ini$
+
+# Test and coverage output
+^cover_db/
+^nytprof\.out$
+^Devel-Cover-.*/
+
+# This file is used by the manifest tool, not shipped.
+^MANIFEST\.SKIP$

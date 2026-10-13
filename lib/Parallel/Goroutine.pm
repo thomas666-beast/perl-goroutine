@@ -23,6 +23,7 @@ sub go(&;@) {
 
     if ($pid == 0) {                # we are the child
         @CHILDREN = ();             # the child must not wait for its siblings
+        local $SIG{PIPE} = 'IGNORE';  # a dead reader must not kill us
         my $ok = eval { $code->(@args); 1 };
         warn "goroutine $$ panicked: $@" unless $ok;
         STDOUT->flush;              # _exit skips the normal flush
@@ -47,14 +48,13 @@ sub gselect {
     my ($timeout, @chans) = @_;
 
     my $select = IO::Select->new;
-    my %chan_for_fd;
     for my $chan (@chans) {
         $select->add($chan->{r});
-        $chan_for_fd{ fileno $chan->{r} } = $chan;
     }
 
     my @ready = $select->can_read($timeout) or return;
-    my $chan  = $chan_for_fd{ fileno $ready[0] };
+    my $fh    = $ready[0];
+    my $chan  = ${*$fh}{go_chan};
     my ($value, $ok) = $chan->recv;
     return ($chan, $value, $ok);
 }
@@ -178,4 +178,3 @@ message first. C<gselect> then waits for the next message, even beyond
 TIMEOUT.
 
 =cut
-

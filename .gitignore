@@ -27,6 +27,9 @@ inc/
 
 /Parallel-Goroutine-*
 
+# Distribution tarballs
+/Parallel-Goroutine-*.tar.gz
+
 # Distribution archives
 /*.gz
 /*.zip

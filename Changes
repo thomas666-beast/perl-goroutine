@@ -1,0 +1,8 @@
+Revision history for Parallel-Goroutine
+
+0.01  2026-10-13
+    - First release.
+    - go BLOCK LIST starts a forked goroutine; returns its PID.
+    - chan() creates a channel with send / recv / close / each.
+    - gselect TIMEOUT, CHANNELS waits on several channels at once.
+    - wait_all() reaps all goroutines and reports failures.
