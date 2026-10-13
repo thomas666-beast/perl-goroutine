@@ -53,10 +53,16 @@ sub gselect {
     }
 
     my @ready = $select->can_read($timeout) or return;
-    my $fh = @ready == 1 ? $ready[0] : $ready[ rand @ready ];
+    my $fh = _pick_ready(@ready);
     my $chan = ${*$fh}{go_chan};
     my ($value, $ok) = $chan->recv;
     return ($chan, $value, $ok);
+}
+
+sub _pick_ready {
+    my (@ready) = @_;
+    return $ready[0] if @ready == 1;
+    return $ready[ rand @ready ];
 }
 
 1;
