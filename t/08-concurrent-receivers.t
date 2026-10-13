@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 2;
 
-use Goroutine;
+use Parallel::Goroutine;
 
 my $WORKERS    = 3;
 my $PER_WORKER = 10;

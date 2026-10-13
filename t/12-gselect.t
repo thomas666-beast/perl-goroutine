@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 5;
 
-use Goroutine;
+use Parallel::Goroutine;
 
 my $one = chan();
 my $two = chan();

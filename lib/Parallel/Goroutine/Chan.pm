@@ -1,4 +1,4 @@
-package Goroutine::Chan;
+package Parallel::Goroutine::Chan;
 use strict;
 use warnings;
 use Storable qw(nfreeze thaw);

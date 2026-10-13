@@ -1,18 +1,18 @@
-package Goroutine;
+package Parallel::Goroutine;
 use strict;
 use warnings;
 use Exporter 'import';
 use IO::Handle;
 use IO::Select;
 use POSIX ();
-use Goroutine::Chan;
+use Parallel::Goroutine::Chan;
 
 our $VERSION = '0.01';
 our @EXPORT  = qw(chan go wait_all gselect);
 my @CHILDREN;
 
 sub chan {
-    return Goroutine::Chan->new;
+    return Parallel::Goroutine::Chan->new;
 }
 
 sub go(&;@) {

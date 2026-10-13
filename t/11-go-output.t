@@ -3,7 +3,7 @@ use warnings;
 use Test::More tests => 2;
 use File::Temp qw(tempfile);
 
-use Goroutine;
+use Parallel::Goroutine;
 
 my ($tmp, $file) = tempfile(UNLINK => 1);
 close $tmp;

@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 4;
 
-use Goroutine;
+use Parallel::Goroutine;
 
 my $ch = chan();
 

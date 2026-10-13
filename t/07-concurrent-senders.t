@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 2;
 
-use Goroutine;
+use Parallel::Goroutine;
 
 my $SENDERS = 3;
 my $PER     = 4;
