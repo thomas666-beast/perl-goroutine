@@ -47,13 +47,6 @@ sub _lock_fh {
     return $new;
 }
 
-sub _lock {
-    my ($path) = @_;
-    open my $fh, '>>', $path or die "lock $path: $!";
-    flock($fh, LOCK_EX) or die "flock: $!";
-    return $fh;     # the lock is released when $fh goes out of scope
-}
-
 sub _write_frame {
     my ($self, $frame) = @_;
     my $len = length $frame;
@@ -70,7 +63,8 @@ sub _write_frame {
     }
 
     # Large frames: lock, then loop because syswrite may short-write.
-    my $lock = _lock($self->{wlock});
+    my $lock = $self->_lock_fh('wlock');
+    flock($lock, LOCK_EX) or die "flock: $!";
     while (length $frame) {
         my $n = syswrite($self->{w}, $frame);
         if (!defined $n) {
@@ -79,6 +73,7 @@ sub _write_frame {
         }
         substr($frame, 0, $n, '');
     }
+    flock($lock, LOCK_UN) or die "flock unlock: $!";
     return 1;
 }
 
@@ -239,6 +234,11 @@ that the goroutine which sends is also the one which closes.
 
 Every receiver sees the close, not just one of them, so a pool of workers can
 all stop when the job channel is closed.
+
+=head2 each CALLBACK
+
+    my $value = $ch->recv;
+    my ($value, $ok) = $ch->recv;
 
 =head2 each CALLBACK
 
