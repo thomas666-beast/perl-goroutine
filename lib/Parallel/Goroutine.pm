@@ -113,5 +113,69 @@ Because it relies on C<fork>, C<flock> and pipes, this module works on
 Unix-like systems only. Each goroutine is a whole process, so use tens or
 hundreds of goroutines, not thousands.
 
+=head1 FUNCTIONS
+
+All four functions are exported by default.
+
+=head2 go BLOCK LIST
+
+    my $pid = go { ... } @args;
+
+Runs BLOCK in a new goroutine and returns the process ID of that goroutine
+at once, without waiting for it. The elements of LIST are passed to BLOCK in
+C<@_>.
+
+If BLOCK dies, the goroutine prints C<goroutine PID panicked: MESSAGE> to
+C<STDERR> and exits with status 1. The calling process is not affected;
+L</wait_all> reports the failure.
+
+Output buffers of C<STDOUT> and C<STDERR> are flushed before the goroutine
+starts and again when it ends, so text printed by a goroutine is neither lost
+nor printed twice.
+
+A goroutine is a copy of the calling process. It can use channels that
+existed when it was started, so create your channels before calling C<go>.
+
+=head2 chan
+
+    my $ch = chan();
+
+Creates a new channel and returns a L<Parallel::Goroutine::Chan> object. See
+that module for C<send>, C<recv>, C<close> and C<each>.
+
+=head2 wait_all
+
+    my $failed = wait_all();
+
+Waits until every goroutine started by the calling process has finished.
+Returns the number of goroutines that failed (died or exited with a non-zero
+status), so a return value of 0 means that everything went well. It also
+returns 0 when there was nothing to wait for.
+
+Call it before your program ends, so that no finished goroutine is left behind
+as a zombie process. A goroutine that starts goroutines of its own should
+call C<wait_all> itself.
+
+=head2 gselect TIMEOUT, CHANNELS
+
+    if (my ($ch, $value, $ok) = gselect(2, $one, $two)) {
+        print "got $value\n";
+    }
+    else {
+        print "nothing arrived within 2 seconds\n";
+    }
+
+Waits until one of the given channels has a message, receives it, and returns
+three values: the channel, the value, and the C<ok> flag. As with C<recv>, the
+flag is false when the channel has been closed and has no more messages.
+
+TIMEOUT is in seconds and may be fractional. If no message arrives in time,
+C<gselect> returns an empty list. If TIMEOUT is C<undef>, it waits for as long
+as it takes.
+
+If several goroutines receive from the same channel, another one may take the
+message first. C<gselect> then waits for the next message, even beyond
+TIMEOUT.
+
 =cut
 
