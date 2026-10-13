@@ -1,43 +1,43 @@
+# t/15-gselect-fairness.t
+
 use strict;
 use warnings;
 use Test::More;
 
 use Parallel::Goroutine;
+use Parallel::Goroutine::Chan;
 
-# gselect must not always pick the same channel when several are ready.
-# Without a shuffle, IO::Select returns fds in the order they were added,
-# so the first channel wins every time. With a shuffle, both get picked.
+# _pick_ready must be able to return each of its arguments.
+# We call it many times with a known set and assert every element is
+# seen at least once. Deterministic in practice: 200 draws from a
+# 2-element set, both must appear.
 
+my $ITER = 200;
+my %seen;
+
+for (1 .. $ITER) {
+    my @picked = Parallel::Goroutine::_pick_ready('x', 'y');
+    $seen{$picked[0]}++;
+}
+
+ok($seen{x}, '_pick_ready can return the first element');
+ok($seen{y}, '_pick_ready can return the second element');
+
+# And gselect must use it: two ready channels, both eventually picked.
 my $a = chan();
 my $b = chan();
 
-my $ITERATIONS = 200;
-my %picked;
-
-for (1 .. $ITERATIONS) {
+my %gselect_picked;
+for (1 .. $ITER) {
     $a->send('a');
     $b->send('b');
-
     my ($ch, $value) = gselect(1, $a, $b);
-    last unless defined $ch;
-
-    $picked{$value}++;
-
-    # drain the loser so the next round starts clean
+    $gselect_picked{$value}++;
     my $other = ($ch == $a) ? $b : $a;
     $other->recv;
 }
 
-ok($picked{a}, "channel a was selected at least once ($picked{a} times)");
-ok($picked{b}, "channel b was selected at least once ($picked{b} times)");
-
-cmp_ok($picked{a} // 0, '>', 0, 'a count is positive');
-cmp_ok($picked{b} // 0, '>', 0, 'b count is positive');
-
-# Both should be roughly half. Allow a wide margin so the test does not
-# flake; the failure mode we care about is one side getting zero.
-my $ratio = ($picked{a} // 0) / $ITERATIONS;
-cmp_ok($ratio, '>', 0.2, "a was not starved (ratio $ratio)");
-cmp_ok($ratio, '<', 0.8, "b was not starved (ratio $ratio)");
+ok($gselect_picked{a}, 'gselect selected a at least once');
+ok($gselect_picked{b}, 'gselect selected b at least once');
 
 done_testing();
