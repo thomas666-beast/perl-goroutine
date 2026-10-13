@@ -25,6 +25,8 @@ inc/
 /MANIFEST.bak
 /pm_to_blib
 
+/Parallel-Goroutine-*
+
 # Distribution archives
 /*.gz
 /*.zip
