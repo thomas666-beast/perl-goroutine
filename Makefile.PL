@@ -12,7 +12,7 @@ if ($^O eq 'MSWin32') {
 WriteMakefile(
     NAME               => 'Parallel::Goroutine',
     VERSION_FROM       => 'lib/Parallel/Goroutine.pm',
-    ABSTRACT           => 'Go-style goroutines and channels for Perl',
+    ABSTRACT_FROM      => 'lib/Parallel/Goroutine.pm',
     AUTHOR             => 'Your Name <you@example.com>',
     LICENSE            => 'perl',
     MIN_PERL_VERSION   => '5.010',
