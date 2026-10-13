@@ -18,16 +18,21 @@ sub go(&;@) {
     my $pid = fork() // die "fork failed: $!";
     if ($pid == 0) {                # we are the child
         @CHILDREN = ();             # the child must not wait for its siblings
-        $code->(@args);
-        POSIX::_exit(0);
+        my $ok = eval { $code->(@args); 1 };
+        warn "goroutine $$ panicked: $@" unless $ok;
+        POSIX::_exit($ok ? 0 : 1);
     }
     push @CHILDREN, $pid;           # we are the parent: remember the child
     return $pid;
 }
 
 sub wait_all {
-    waitpid($_, 0) for splice @CHILDREN;
-    return;
+    my $failed = 0;
+    for my $pid (splice @CHILDREN) {
+        waitpid($pid, 0);
+        $failed++ if $? != 0;
+    }
+    return $failed;
 }
 
 1;
