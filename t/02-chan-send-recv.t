@@ -7,7 +7,7 @@ use Goroutine;
 my $ch = chan();
 
 $ch->send('hello');
-is($ch->recv, 'hello', 'recv returns the value that was sent');
+is(scalar $ch->recv, 'hello', 'recv returns the value that was sent');
 
 $ch->send('world');
-is($ch->recv, 'world', 'a second value also round-trips');
+is(scalar $ch->recv, 'world', 'a second value also round-trips');
