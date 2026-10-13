@@ -31,6 +31,22 @@ sub new {
     return $self;
 }
 
+# Open a lock file lazily and keep the handle for this process only.
+# After fork, the child's copy of a pre-fork handle would share the
+# same open file description as the parent's, and flock() between them
+# would be a no-op. Opening on first use in each process avoids that.
+sub _lock_fh {
+    my ($self, $which) = @_;
+    my $cache = $self->{lock_fh} ||= {};
+    my $fh    = $cache->{$which};
+    return $fh if $fh;
+
+    my $path = $self->{$which} or die "no $which path";
+    open my $new, '>>', $path or die "lock $path: $!";
+    $cache->{$which} = $new;
+    return $new;
+}
+
 sub _lock {
     my ($path) = @_;
     open my $fh, '>>', $path or die "lock $path: $!";
@@ -82,7 +98,11 @@ sub _read_exact {
 
 sub DESTROY {
     my ($self) = @_;
-    unlink $self->{rlock}, $self->{wlock} if $self->{owner} == $$;
+    return unless $self->{owner} == $$;
+    if (my $cache = $self->{lock_fh}) {
+        close $_ for values %$cache;
+    }
+    unlink $self->{rlock}, $self->{wlock};
 }
 
 sub send {
@@ -100,11 +120,13 @@ sub recv {
 
     my $payload;
     {
-        my $lock   = _lock($self->{rlock});
+        my $lock = $self->_lock_fh('rlock');
+        flock($lock, LOCK_EX) or die "flock: $!";
         my $header = _read_exact($self->{r}, 4);
         my $len    = unpack('N', $header);
 
         $payload = $len ? _read_exact($self->{r}, $len) : '';
+        flock($lock, LOCK_UN) or die "flock unlock: $!";
     }
 
     if ($payload eq '') {                  # the close marker
