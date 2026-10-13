@@ -97,4 +97,14 @@ sub _read_exact {
     return $data;
 }
 
+sub each {
+    my ($self, $callback) = @_;
+    while (1) {
+        my ($value, $ok) = $self->recv;
+        last unless $ok;
+        $callback->($value);
+    }
+    return;
+}
+
 1;
