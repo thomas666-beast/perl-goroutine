@@ -8,6 +8,12 @@ use Errno qw(EPIPE);
 
 our $VERSION = '0.01';
 
+use constant {
+    T_UNDEF  => 0,
+    T_SCALAR => 1,
+    T_STOR   => 2,
+};
+
 sub new {
     my ($class) = @_;
     pipe(my $r, my $w) or die "pipe: $!";
@@ -91,6 +97,29 @@ sub _read_exact {
     return $data;
 }
 
+# Build: [4-byte length][1-byte type][payload]
+# where length counts the type byte plus the payload.
+# A close marker is a bare [4-byte zero] with no type byte, produced
+# by close() directly, not by _encode().
+sub _encode {
+    my ($value) = @_;
+    if (!defined $value) {
+        return pack('N C', 1, T_UNDEF);
+    }
+    if (!ref $value) {
+        return pack('N C', 1 + length $value, T_SCALAR) . $value;
+    }
+    my $frozen = nfreeze([$value]);
+    return pack('N C', 1 + length $frozen, T_STOR) . $frozen;
+}
+
+sub _decode {
+    my ($type, $payload) = @_;
+    return undef    if $type == T_UNDEF;
+    return $payload if $type == T_SCALAR;
+    return thaw($payload)->[0];
+}
+
 sub DESTROY {
     my ($self) = @_;
     return unless $self->{owner} == $$;
@@ -103,9 +132,7 @@ sub DESTROY {
 sub send {
     my ($self, $value) = @_;
     die "send on closed channel\n" if $self->{send_closed};
-    my $payload = nfreeze([$value]);
-    my $frame   = pack('N', length $payload) . $payload;
-    $self->_write_frame($frame);
+    $self->_write_frame(_encode($value));
     return 1;
 }
 
@@ -113,23 +140,26 @@ sub recv {
     my ($self) = @_;
     return wantarray ? (undef, 0) : undef if $self->{closed};
 
-    my $payload;
+    my ($type, $payload);
     {
         my $lock = $self->_lock_fh('rlock');
         flock($lock, LOCK_EX) or die "flock: $!";
         my $header = _read_exact($self->{r}, 4);
         my $len    = unpack('N', $header);
 
-        $payload = $len ? _read_exact($self->{r}, $len) : '';
+        if ($len == 0) {                    # close marker
+            flock($lock, LOCK_UN) or die "flock unlock: $!";
+            $self->{closed} = 1;
+            $self->_write_frame(pack('N', 0));
+            return wantarray ? (undef, 0) : undef;
+        }
+
+        $type    = ord(_read_exact($self->{r}, 1));
+        $payload = $len > 1 ? _read_exact($self->{r}, $len - 1) : '';
         flock($lock, LOCK_UN) or die "flock unlock: $!";
     }
 
-    if ($payload eq '') {                  # the close marker
-        $self->{closed} = 1;
-        $self->_write_frame(pack('N', 0)); # put it back for the next receiver
-        return wantarray ? (undef, 0) : undef;
-    }
-    my $value = thaw($payload)->[0];
+    my $value = _decode($type, $payload);
     return wantarray ? ($value, 1) : $value;
 }
 
@@ -183,9 +213,10 @@ Channels are created with C<chan> from L<Parallel::Goroutine>, not by calling
 C<new> yourself. They work with any number of senders and receivers at the
 same time.
 
-Values are copied when they are sent, using L<Storable>. Scalars, C<undef>,
-array references, hash references and nested data structures can be sent.
-Code references and filehandles cannot; C<send> dies if you try.
+Values are copied when they are sent. Plain scalars and C<undef> are
+copied directly; references go through L<Storable>. Scalars, C<undef>, array
+references, hash references and nested data structures can be sent. Code
+references and filehandles cannot; C<send> dies if you try.
 
 A channel holds roughly 64KB of data. When it is full, C<send> waits until a
 receiver has made room.
@@ -234,11 +265,6 @@ that the goroutine which sends is also the one which closes.
 
 Every receiver sees the close, not just one of them, so a pool of workers can
 all stop when the job channel is closed.
-
-=head2 each CALLBACK
-
-    my $value = $ch->recv;
-    my ($value, $ok) = $ch->recv;
 
 =head2 each CALLBACK
 
