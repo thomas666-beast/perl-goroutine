@@ -3,11 +3,12 @@ use strict;
 use warnings;
 use Exporter 'import';
 use IO::Handle;
+use IO::Select;
 use POSIX ();
 use Goroutine::Chan;
 
 our $VERSION = '0.01';
-our @EXPORT  = qw(chan go wait_all);
+our @EXPORT  = qw(chan go wait_all gselect);
 my @CHILDREN;
 
 sub chan {
@@ -40,6 +41,22 @@ sub wait_all {
         $failed++ if $? != 0;
     }
     return $failed;
+}
+
+sub gselect {
+    my ($timeout, @chans) = @_;
+
+    my $select = IO::Select->new;
+    my %chan_for_fd;
+    for my $chan (@chans) {
+        $select->add($chan->{r});
+        $chan_for_fd{ fileno $chan->{r} } = $chan;
+    }
+
+    my @ready = $select->can_read($timeout) or return;
+    my $chan  = $chan_for_fd{ fileno $ready[0] };
+    my ($value, $ok) = $chan->recv;
+    return ($chan, $value, $ok);
 }
 
 1;
