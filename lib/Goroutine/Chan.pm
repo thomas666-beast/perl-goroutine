@@ -63,11 +63,13 @@ sub recv {
         my $header = _read_exact($self->{r}, 4);
         my $len    = unpack('N', $header);
 
-        if ($len == 0) {                   # the close marker
-            $self->{closed} = 1;
-            return wantarray ? (undef, 0) : undef;
-        }
-        $payload = _read_exact($self->{r}, $len);
+        $payload = $len ? _read_exact($self->{r}, $len) : '';
+    }
+
+    if ($payload eq '') {                  # the close marker
+        $self->{closed} = 1;
+        $self->_write_frame(pack('N', 0)); # put it back for the next receiver
+        return wantarray ? (undef, 0) : undef;
     }
     my $value = thaw($payload)->[0];
     return wantarray ? ($value, 1) : $value;
